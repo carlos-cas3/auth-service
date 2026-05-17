@@ -31,15 +31,28 @@ class AuthService {
 
         const hashedPassword = await bcrypt.hash(
             password,
-            parseInt(process.env.BCRYPT_ROUNDS),
+            Number.parseInt(process.env.BCRYPT_ROUNDS),
         );
 
         const vendorRole = await roleRepository.findByName(
             ROLE_NAME.VENDOR_ADMIN,
         );
 
-        let vendor;
+        // 1. Crear usuario primero (sin vendor_id aún)
+        const user = await userRepository.create({
+            first_name: firstName,
+            last_name: lastName,
+            email,
+            phone,
+            password: hashedPassword,
+            role_id: vendorRole.role_id,
+            status: USER_STATUS.PENDING,
+            vendor_id: null,
+        });
 
+
+        // 2. Crear vendor pasando el userId
+        let vendor;
         try {
             const response = await axios.post(
                 "http://localhost:3001/api/vendors",
@@ -50,47 +63,32 @@ class AuthService {
                     phone: phone,
                     address: company.address,
                     categories: company.categories,
+                    userId: user.user_id,
                 },
             );
-
             vendor = response.data;
         } catch (error) {
-            console.log(
-                "Vendor service error response:",
-                JSON.stringify(error.response?.data),
-            );
-            console.log("Vendor service status:", error.response?.status);
+            // Si falla el vendor-service, eliminar el usuario creado
+            await userRepository.delete(user.user_id);
             throw new Error(
                 error.response?.data?.message || "Error creating vendor",
             );
         }
 
-        console.log("vendor response:", JSON.stringify(vendor)); // ← agregar aquí
+        // 3. Actualizar usuario con el vendor_id
+        await userRepository.updateVendorId(
+            user.user_id,
+            vendor.data.vendor_id,
+        );
 
-        console.log("ROLE_NAME.VENDOR_ADMIN:", ROLE_NAME.VENDOR_ADMIN);
-        console.log("ROLE_NAME.VENDOR_ADMIN:", ROLE_NAME.VENDOR_ADMIN);
-        console.log("vendorRole result:", vendorRole);
-
-        const user = await userRepository.create({
-            first_name: firstName,
-            last_name: lastName,
-            email,
-            phone,
-            password: hashedPassword,
-            role_id: vendorRole.role_id,
-            status: USER_STATUS.PENDING,
+        return this.sanitizeUser({
+            ...user,
             vendor_id: vendor.data.vendor_id,
         });
-
-        return this.sanitizeUser(user);
     }
 
     async login(email, password) {
         const user = await userRepository.findByEmail(email);
-        console.log("user found:", user);
-        console.log("password input:", password);
-        console.log("password hash en BD:", user?.password);
-        console.log("match:", await bcrypt.compare(password, user?.password));
         if (!user) {
             throw new Error("Invalid credentials");
         }
@@ -135,10 +133,7 @@ class AuthService {
         }
 
         const user = await userRepository.findById(userId);
-        if (!user) {
-            throw new Error("User not found");
-        }
-
+        if (!user) throw new Error("User not found");
         if (user.status !== USER_STATUS.PENDING) {
             throw new Error("User is not pending approval");
         }
@@ -148,7 +143,36 @@ class AuthService {
             USER_STATUS.ACTIVE,
         );
 
+        if (user.vendor_id) {
+            try {
+                await axios.patch(
+                    `http://localhost:3001/api/vendors/${user.vendor_id}/status`,
+                    { status: "ACTIVE" },
+                );
+            } catch (error) {
+                console.error(
+                    "Error actualizando vendor status:",
+                    error.message,
+                );
+            }
+        }
+
         return this.sanitizeUser(updatedUser);
+    }
+
+    async updateUserStatus(userId, status) {
+        const statusMap = {
+            ACTIVE: USER_STATUS.ACTIVE,
+            PENDING: USER_STATUS.PENDING,
+            INACTIVE: USER_STATUS.REJECTED, // o agregar INACTIVE a USER_STATUS
+            SUSPENDED: USER_STATUS.REJECTED,
+        };
+
+        const mappedStatus = statusMap[status];
+        if (!mappedStatus) throw new Error("Status inválido");
+
+        const user = await userRepository.updateStatus(userId, mappedStatus);
+        return this.sanitizeUser(user);
     }
 
     async getPendingUsers() {
@@ -168,8 +192,8 @@ class AuthService {
             createdAt: user.created_at,
             role: user.roles
                 ? {
-                      roleName: user.roles.role_name,
-                      roleDescription: user.roles.role_description,
+                    roleName: user.roles.role_name,
+                    roleDescription: user.roles.role_description,
                   }
                 : null,
         };
@@ -179,11 +203,10 @@ class AuthService {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             const user = await userRepository.findById(decoded.userId);
-            if (!user) {
-                throw new Error("User not found");
-            }
+            if (!user) throw new Error("User not found");
             return this.sanitizeUser(user);
         } catch (error) {
+            console.error("Token validation error:", error.message);
             throw new Error("Invalid token");
         }
     }

@@ -99,6 +99,17 @@ class AuthController {
         }
     }
 
+    async updateUserStatus(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { status } = req.body;
+            const user = await authService.updateUserStatus(id, status);
+            res.json({ success: true, data: user });
+        } catch (err) {
+            next(err);
+        }
+    }
+
     async me(req, res, next) {
         try {
             const user = req.user;
