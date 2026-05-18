@@ -7,6 +7,8 @@ const { updateVendorStatus } = require("../clients/vendor.client"); // cambió
 const STATUS_MAP = {
     ACTIVE: USER_STATUS.ACTIVE,
     PENDING: USER_STATUS.PENDING,
+    INACTIVE: USER_STATUS.INACTIVE,
+    SUSPENDED: USER_STATUS.SUSPENDED,
 };
 
 class AdminService {

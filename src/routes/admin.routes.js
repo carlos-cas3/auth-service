@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { adminController } = require("../controllers");
 const { authenticate, authorize } = require("../middlewares");
+const serviceAuth = require("../middlewares/serviceAuth");
 
 router.get(
     "/users/pending",
@@ -19,8 +20,11 @@ router.patch(
 
 router.patch(
     "/users/:id/status",
-    authenticate,
-    authorize("SUPER_ADMIN"),
+    serviceAuth, // primero verifica si es llamada interna
+    (req, res, next) => {
+        if (req.isInternalService) return next(); // llamada interna, salta authenticate
+        authenticate(req, res, next); // llamada normal, requiere JWT
+    },
     adminController.updateUserStatus,
 );
 
