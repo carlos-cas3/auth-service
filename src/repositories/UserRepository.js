@@ -4,15 +4,11 @@ class UserRepository {
     async findByEmail(email) {
         const { data, error } = await (supabaseAdmin || supabase)
             .from("users")
-            .select("*")
+            .select("*, roles(role_name, role_description)") // añadir join
             .eq("email", email)
             .single();
 
-        console.log("data:", data, "error:", error);
-        if (error && error.code !== "PGRST116") {
-            throw new Error(error.message);
-        }
-
+        if (error && error.code !== "PGRST116") throw new Error(error.message);
         return data;
     }
 
@@ -69,13 +65,10 @@ class UserRepository {
             .from("users")
             .update({ status })
             .eq("user_id", userId)
-            .select()
+            .select("*, roles(role_name, role_description)")
             .single();
 
-        if (error) {
-            throw new Error(error.message);
-        }
-
+        if (error) throw new Error(error.message);
         return data;
     }
 
@@ -84,13 +77,10 @@ class UserRepository {
             .from("users")
             .update({ vendor_id: vendorId })
             .eq("user_id", userId)
-            .select()
+            .select("*, roles(role_name, role_description)") // añadir join
             .single();
 
-        if (error) {
-            throw new Error(error.message);
-        }
-
+        if (error) throw new Error(error.message);
         return data;
     }
 

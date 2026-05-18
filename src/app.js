@@ -3,7 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
-const { authRoutes } = require("./routes");
+const { authRoutes, adminRoutes } = require("./routes");
 const {
     errorHandler,
     notFoundHandler,
@@ -33,7 +33,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
-
+app.use("/api/admin", adminRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 

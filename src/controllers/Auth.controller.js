@@ -9,7 +9,6 @@ const registerSchema = Joi.object({
     phone: Joi.string().required(),
     password: Joi.string().min(6).required(),
     confirmPassword: Joi.string().valid(Joi.ref("password")).required(),
-
     company: Joi.object({
         name: Joi.string().required(),
         ruc: Joi.string().required(),
@@ -69,54 +68,11 @@ class AuthController {
         }
     }
 
-    async approveUser(req, res, next) {
-        try {
-            const { id } = req.params;
-            const adminUser = req.user;
-
-            const user = await authService.approveUser(id, adminUser);
-
-            res.status(HTTP_STATUS.OK).json({
-                success: true,
-                message: "User approved successfully",
-                data: user,
-            });
-        } catch (err) {
-            next(err);
-        }
-    }
-
-    async getPendingUsers(req, res, next) {
-        try {
-            const users = await authService.getPendingUsers();
-
-            res.status(HTTP_STATUS.OK).json({
-                success: true,
-                data: users,
-            });
-        } catch (err) {
-            next(err);
-        }
-    }
-
-    async updateUserStatus(req, res, next) {
-        try {
-            const { id } = req.params;
-            const { status } = req.body;
-            const user = await authService.updateUserStatus(id, status);
-            res.json({ success: true, data: user });
-        } catch (err) {
-            next(err);
-        }
-    }
-
     async me(req, res, next) {
         try {
-            const user = req.user;
-
             res.status(HTTP_STATUS.OK).json({
                 success: true,
-                data: user,
+                data: req.user,
             });
         } catch (err) {
             next(err);
