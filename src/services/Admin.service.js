@@ -46,6 +46,20 @@ class AdminService {
         const users = await userRepository.findAllPending();
         return users.map(sanitizeUser);
     }
+
+    async getUserByVendorId(vendorId) {
+        const user = await userRepository.findByVendorId(parseInt(vendorId));
+        if (!user) throw new Error("Usuario no encontrado para este vendor");
+        return sanitizeUser(user);
+    }
+
+    async updateUser(userId, data) {
+        const user = await userRepository.findById(userId);
+        if (!user) throw new Error("Usuario no encontrado");
+
+        const updated = await userRepository.update(userId, data);
+        return sanitizeUser(updated);
+    }
 }
 
 module.exports = new AdminService();

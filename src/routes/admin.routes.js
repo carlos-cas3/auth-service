@@ -28,4 +28,23 @@ router.patch(
     adminController.updateUserStatus,
 );
 
+
+router.get(
+    "/vendors/:vendor_id/user",
+    authenticate,
+    authorize("SUPER_ADMIN"),
+    adminController.getUserByVendorId,
+);
+
+
+//es el user_id el que se actualiza, no el vendor_id
+
+router.patch(
+    "/users/:id",
+    authenticate,
+    authorize("SUPER_ADMIN"),
+    express.json(),
+    adminController.updateUser,
+);
+
 module.exports = router;

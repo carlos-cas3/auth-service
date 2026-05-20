@@ -26,6 +26,17 @@ class UserRepository {
         return data;
     }
 
+    async findByVendorId(vendorId) {
+        const { data, error } = await (supabaseAdmin || supabase)
+            .from("users")
+            .select("*, roles(role_name, role_description)")
+            .eq("vendor_id", vendorId)
+            .single();
+
+        if (error && error.code !== "PGRST116") throw new Error(error.message);
+        return data;
+    }
+
     async create(userData) {
         const {
             first_name,
@@ -77,11 +88,27 @@ class UserRepository {
             .from("users")
             .update({ vendor_id: vendorId })
             .eq("user_id", userId)
-            .select("*, roles(role_name, role_description)") // añadir join
+            .select("*, roles(role_name, role_description)")
             .single();
 
         if (error) throw new Error(error.message);
         return data;
+    }
+
+    async update(userId, data) {
+        const { data: user, error } = await (supabaseAdmin || supabase)
+            .from("users")
+            .update({
+                first_name: data.first_name,
+                last_name: data.last_name,
+                personal_phone: data.personal_phone,
+            })
+            .eq("user_id", userId)
+            .select("*, roles(role_name, role_description)")
+            .single();
+
+        if (error) throw new Error(error.message);
+        return user;
     }
 
     async findAllPending() {

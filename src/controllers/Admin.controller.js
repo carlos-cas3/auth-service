@@ -45,6 +45,35 @@ class AdminController {
             next(err);
         }
     }
+
+    async getUserByVendorId(req, res, next) {
+        try {
+            const { vendor_id } = req.params;
+            const user = await adminService.getUserByVendorId(vendor_id);
+
+            res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: user,
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async updateUser(req, res, next) {
+        try {
+            const { id } = req.params;
+            const user = await adminService.updateUser(id, req.body);
+
+            res.status(HTTP_STATUS.OK).json({
+                success: true,
+                message: "Usuario actualizado correctamente",
+                data: user,
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
 }
 
 module.exports = new AdminController();
