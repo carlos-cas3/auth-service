@@ -1,5 +1,3 @@
-// Responsabilidad única: firma y verificación de JWT
-
 const jwt = require("jsonwebtoken");
 
 const generateToken = (user) => {
