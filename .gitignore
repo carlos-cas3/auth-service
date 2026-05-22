@@ -6,3 +6,5 @@ coverage/
 
 AGENTS.md
 **/__tests__/
+.agents/
+skills-lock.json

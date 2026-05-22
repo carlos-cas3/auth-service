@@ -1,0 +1,9 @@
+node_modules/
+.env
+.git
+.gitignore
+.github/
+coverage/
+AGENTS.md
+*.md
+.DS_Store
