@@ -15,15 +15,24 @@ const PORT = process.env.PORT || 3006;
 
 const corsOptions = {
     origin: process.env.ALLOWED_ORIGINS?.split(",") || [
-        "http://localhost:5173", // frontend Vite
-        "http://localhost:3001", // vendor-service
+        "http://localhost:5173",
+        "http://localhost:3001",
     ],
-    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"], 
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
 };
 
 app.use(helmet());
 app.use(cors(corsOptions));
+
+app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(204);
+    }
+    next();
+});
+
 app.use(generalLimiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
