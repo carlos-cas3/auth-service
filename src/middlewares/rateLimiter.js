@@ -21,6 +21,12 @@ const generalLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
+
+    skip: (req) => {
+        return (
+            req.method === "OPTIONS" || process.env.NODE_ENV === "development"
+        );
+    },
 });
 
 module.exports = { loginLimiter, generalLimiter };
