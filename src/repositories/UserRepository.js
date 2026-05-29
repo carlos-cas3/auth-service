@@ -1,10 +1,17 @@
 const { supabase, supabaseAdmin } = require("../config/supabase");
 
 class UserRepository {
+    /**
+     * Find a user by email address, including their role data.
+     *
+     * @param {string} email - Email to search for
+     * @returns {Promise<Object|null>} User row with joined roles, or null if not found
+     * @throws {Error} On unexpected database errors (code !== PGRST116)
+     */
     async findByEmail(email) {
         const { data, error } = await (supabaseAdmin || supabase)
             .from("users")
-            .select("*, roles(role_name, role_description)") // añadir join
+            .select("*, roles(role_name, role_description)")
             .eq("email", email)
             .single();
 
@@ -12,6 +19,13 @@ class UserRepository {
         return data;
     }
 
+    /**
+     * Find a user by their numeric user ID.
+     *
+     * @param {number} userId - User ID to look up
+     * @returns {Promise<Object|null>} User row with joined roles, or null if not found
+     * @throws {Error} On unexpected database errors
+     */
     async findById(userId) {
         const { data, error } = await (supabaseAdmin || supabase)
             .from("users")
@@ -26,6 +40,13 @@ class UserRepository {
         return data;
     }
 
+    /**
+     * Find a user by their linked vendor ID.
+     *
+     * @param {number} vendorId - Vendor ID to look up
+     * @returns {Promise<Object|null>} User row with joined roles, or null if not found
+     * @throws {Error} On unexpected database errors
+     */
     async findByVendorId(vendorId) {
         const { data, error } = await (supabaseAdmin || supabase)
             .from("users")
@@ -37,6 +58,21 @@ class UserRepository {
         return data;
     }
 
+    /**
+     * Create a new user row.
+     *
+     * @param {Object} userData - User data (snake_case keys)
+     * @param {string} userData.first_name - First name
+     * @param {string} userData.last_name - Last name
+     * @param {string} userData.email - Email address
+     * @param {string} userData.personal_phone - Phone number
+     * @param {string} userData.password - Hashed password
+     * @param {number} userData.role_id - Role ID
+     * @param {string} userData.status - Initial status
+     * @param {number|null} [userData.vendor_id] - Optional vendor ID
+     * @returns {Promise<Object>} The created user row
+     * @throws {Error} On database insert failure
+     */
     async create(userData) {
         const {
             first_name,
@@ -71,6 +107,14 @@ class UserRepository {
         return data;
     }
 
+    /**
+     * Update a user's status.
+     *
+     * @param {number} userId - ID of the user to update
+     * @param {string} status - New status (PENDING, ACTIVE, INACTIVE, SUSPENDED)
+     * @returns {Promise<Object>} Updated user row with joined roles
+     * @throws {Error} On database update failure
+     */
     async updateStatus(userId, status) {
         const { data, error } = await (supabaseAdmin || supabase)
             .from("users")
@@ -83,6 +127,14 @@ class UserRepository {
         return data;
     }
 
+    /**
+     * Link a vendor ID to an existing user.
+     *
+     * @param {number} userId - ID of the user
+     * @param {number} vendorId - Vendor ID returned by the Vendor Service
+     * @returns {Promise<Object>} Updated user row with joined roles
+     * @throws {Error} On database update failure
+     */
     async updateVendorId(userId, vendorId) {
         const { data, error } = await (supabaseAdmin || supabase)
             .from("users")
@@ -95,6 +147,17 @@ class UserRepository {
         return data;
     }
 
+    /**
+     * Update a user's basic profile fields (first_name, last_name, personal_phone).
+     *
+     * @param {number} userId - ID of the user to update
+     * @param {Object} data - Fields to update (snake_case)
+     * @param {string} [data.first_name] - New first name
+     * @param {string} [data.last_name] - New last name
+     * @param {string} [data.personal_phone] - New phone number
+     * @returns {Promise<Object>} Updated user row with joined roles
+     * @throws {Error} On database update failure
+     */
     async update(userId, data) {
         const { data: user, error } = await (supabaseAdmin || supabase)
             .from("users")
@@ -111,6 +174,12 @@ class UserRepository {
         return user;
     }
 
+    /**
+     * Find all VENDOR_ADMIN users with PENDING status, ordered by creation date descending.
+     *
+     * @returns {Promise<Object[]>} Array of pending user rows with joined roles
+     * @throws {Error} On database query failure
+     */
     async findAllPending() {
         const { data, error } = await (supabaseAdmin || supabase)
             .from("users")
@@ -126,6 +195,12 @@ class UserRepository {
         return data;
     }
 
+    /**
+     * Retrieve all users with role data, ordered by creation date descending.
+     *
+     * @returns {Promise<Object[]>} Array of user rows
+     * @throws {Error} On database query failure
+     */
     async findAll() {
         const { data, error } = await (supabaseAdmin || supabase)
             .from("users")
@@ -139,6 +214,13 @@ class UserRepository {
         return data;
     }
 
+    /**
+     * Delete a user by ID.
+     *
+     * @param {number} userId - ID of the user to delete
+     * @returns {Promise<void>}
+     * @throws {Error} On database delete failure
+     */
     async delete(userId) {
         const { error } = await (supabaseAdmin || supabase)
             .from("users")

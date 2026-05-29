@@ -7,6 +7,27 @@ const { createVendor } = require("../clients/vendor.client");
 const { mapToVendorPayload } = require("../mappers/vendor.mapper");
 
 class AuthService {
+    /**
+     * Register a new VENDOR_ADMIN user.
+     *
+     * Flow: validate inputs → check uniqueness → hash password → create user →
+     * create vendor via HTTP (rolls back user on failure) → link vendor_id → return.
+     *
+     * @param {Object} userData - Registration payload
+     * @param {string} userData.firstName - First name
+     * @param {string} userData.lastName - Last name
+     * @param {string} userData.email - Email address
+     * @param {string} userData.personal_phone - Phone number
+     * @param {string} userData.password - Plaintext password (min 6 chars)
+     * @param {string} userData.confirmPassword - Must match password
+     * @param {Object} userData.company - Company information
+     * @param {string} userData.company.name - Company name
+     * @param {string} userData.company.ruc - Tax ID
+     * @param {string} userData.company.address - Company address
+     * @param {number[]} userData.company.categories - Category IDs
+     * @returns {Promise<Object>} Sanitized user (camelCase) with linked vendor_id
+     * @throws {Error} If passwords don't match, email is taken, or vendor creation fails
+     */
     async register(userData) {
         const {
             firstName,
@@ -65,6 +86,16 @@ class AuthService {
         return sanitizeUser({ ...user, vendor_id: vendor.vendor_id });
     }
 
+    /**
+     * Authenticate a user by email and password.
+     *
+     * @param {string} email - User email
+     * @param {string} password - Plaintext password
+     * @returns {Promise<Object>} Login result with JWT token and sanitized user
+     * @property {string} token - Signed JWT
+     * @property {Object} user - Sanitized user object (camelCase)
+     * @throws {Error} If credentials are invalid, account is pending, or account is rejected
+     */
     async login(email, password) {
         const user = await userRepository.findByEmail(email);
         if (!user) throw new Error("Invalid credentials");
@@ -82,6 +113,13 @@ class AuthService {
         return { token, user: sanitizeUser(user) };
     }
 
+    /**
+     * Validate a JWT token and return the associated user.
+     *
+     * @param {string} token - JWT string (without "Bearer " prefix)
+     * @returns {Promise<Object>} Sanitized user (camelCase)
+     * @throws {Error} If the token is invalid, expired, or the user no longer exists
+     */
     async validateToken(token) {
         try {
             const decoded = verifyToken(token);

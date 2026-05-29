@@ -4,6 +4,16 @@ const { adminController } = require("../controllers");
 const { authenticate, authorize } = require("../middlewares");
 const serviceAuth = require("../middlewares/serviceAuth");
 
+/**
+ * Admin routes — mounted at /api/admin.
+ * All endpoints require SUPER_ADMIN role unless they use internal service auth.
+ *
+ * GET   /users/pending           — List pending VENDOR_ADMIN users
+ * PATCH /users/:id/approve       — Approve a pending user
+ * PATCH /users/:id/status        — Update user status (JWT or internal service)
+ * GET   /vendors/:vendor_id/user — Lookup user by linked vendor ID
+ * PATCH /users/:id               — Update user profile fields
+ */
 router.get(
     "/users/pending",
     authenticate,
@@ -20,10 +30,10 @@ router.patch(
 
 router.patch(
     "/users/:id/status",
-    serviceAuth, // primero verifica si es llamada interna
+    serviceAuth,
     (req, res, next) => {
-        if (req.isInternalService) return next(); // llamada interna, salta authenticate
-        authenticate(req, res, next); // llamada normal, requiere JWT
+        if (req.isInternalService) return next();
+        authenticate(req, res, next);
     },
     adminController.updateUserStatus,
 );
@@ -36,8 +46,6 @@ router.get(
     adminController.getUserByVendorId,
 );
 
-
-//es el user_id el que se actualiza, no el vendor_id
 
 router.patch(
     "/users/:id",

@@ -1,5 +1,10 @@
 const rateLimit = require("express-rate-limit");
 
+/**
+ * Strict rate limiter for the login endpoint.
+ * - Production: 5 requests per 15-minute window
+ * - Development: 100 requests per 15-minute window (skipped entirely when NODE_ENV=development)
+ */
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: process.env.NODE_ENV === "development" ? 100 : 5,
@@ -9,9 +14,14 @@ const loginLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    skip: () => process.env.NODE_ENV === "development", // ← saltea en dev
+    skip: () => process.env.NODE_ENV === "development",
 });
 
+/**
+ * General rate limiter applied to all /api routes.
+ * - 100 requests per 15-minute window
+ * - Skipped for OPTIONS requests (CORS preflight) and in development mode
+ */
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,

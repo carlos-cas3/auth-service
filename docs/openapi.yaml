@@ -1,0 +1,835 @@
+openapi: 3.0.3
+info:
+  title: Auth Service API
+  description: |
+    Microservicio de autenticación y administración de usuarios con Supabase.
+
+    Roles disponibles:
+    - **SUPER_ADMIN**: Acceso completo a rutas de administración (/api/admin/*)
+    - **VENDOR_ADMIN**: Usuarios registrados vía /api/auth/register, pendientes de aprobación
+
+    Flujo típico:
+    1. POST /api/auth/register → usuario queda en estado PENDING
+    2. SUPER_ADMIN aprueba vía PATCH /api/admin/users/:id/approve
+    3. Usuario hace login vía POST /api/auth/login → recibe JWT
+    4. Usuario consulta su perfil vía GET /api/auth/me
+  version: 1.0.0
+  contact:
+    name: Auth Service Team
+
+servers:
+  - url: http://localhost:3006
+    description: Local development
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      description: Returns the current service status and server timestamp. No authentication required.
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: "ok"
+                timestamp: "2026-05-28T12:00:00.000Z"
+
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new VENDOR_ADMIN user
+      description: |
+        Creates a new user with VENDOR_ADMIN role and PENDING status.
+        Also creates a vendor via the external Vendor Service.
+        If vendor creation fails, the user row is automatically deleted (rollback).
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+            example:
+              firstName: "John"
+              lastName: "Doe"
+              email: "john@example.com"
+              personal_phone: "123456789"
+              password: "secret123"
+              confirmPassword: "secret123"
+              company:
+                name: "Acme Corp"
+                ruc: "12345678901"
+                address: "123 Main St"
+                categories: [1, 2, 3]
+      responses:
+        "201":
+          description: User registered successfully and pending approval
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+              example:
+                success: true
+                message: "User registered successfully. Pending approval."
+                data:
+                  userId: 1
+                  vendorId: null
+                  roleId: 2
+                  firstName: "John"
+                  lastName: "Doe"
+                  email: "john@example.com"
+                  personalPhone: "123456789"
+                  status: "PENDING"
+                  createdAt: "2026-05-28T12:00:00.000Z"
+                  role:
+                    roleName: "VENDOR_ADMIN"
+                    roleDescription: null
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: "\"firstName\" is required"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: "Email already registered"
+        "500":
+          description: Vendor creation failed (rollback performed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: "Error creating vendor"
+
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Authenticate and receive a JWT
+      description: |
+        Authenticates a user by email and password.
+        Returns a JWT token and user profile on success.
+        Rate-limited to 5 attempts per 15 minutes (production).
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+            example:
+              email: "john@example.com"
+              password: "secret123"
+      responses:
+        "200":
+          description: Login successful, returns JWT token and user data
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/LoginResponse"
+              example:
+                success: true
+                message: "Login successful"
+                data:
+                  token: "eyJhbGciOiJIUzI1NiIs..."
+                  user:
+                    userId: 1
+                    vendorId: 10
+                    roleId: 2
+                    firstName: "John"
+                    lastName: "Doe"
+                    email: "john@example.com"
+                    personalPhone: "123456789"
+                    status: "ACTIVE"
+                    createdAt: "2026-05-28T12:00:00.000Z"
+                    role:
+                      roleName: "VENDOR_ADMIN"
+                      roleDescription: null
+        "400":
+          description: Validation error (e.g. missing email)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid credentials, account pending, or account rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                invalidCredentials:
+                  value:
+                    success: false
+                    message: "Invalid credentials"
+                pending:
+                  value:
+                    success: false
+                    message: "Account pending approval"
+                rejected:
+                  value:
+                    success: false
+                    message: "Account rejected"
+        "429":
+          description: Too many login attempts (rate limited)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: "Too many login attempts. Please try again in 15 minutes."
+
+  /api/auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get current user profile
+      description: Returns the profile of the currently authenticated user.
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+              example:
+                success: true
+                data:
+                  userId: 1
+                  vendorId: 10
+                  roleId: 2
+                  firstName: "John"
+                  lastName: "Doe"
+                  email: "john@example.com"
+                  personalPhone: "123456789"
+                  status: "ACTIVE"
+                  createdAt: "2026-05-28T12:00:00.000Z"
+                  role:
+                    roleName: "VENDOR_ADMIN"
+                    roleDescription: null
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                noToken:
+                  value:
+                    success: false
+                    message: "No token provided"
+                invalidToken:
+                  value:
+                    success: false
+                    message: "Invalid token"
+
+  /api/admin/users/pending:
+    get:
+      tags:
+        - Admin
+      summary: List pending VENDOR_ADMIN users
+      description: |
+        Returns all users with VENDOR_ADMIN role and PENDING status,
+        ordered by creation date descending.
+      operationId: getPendingUsers
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of pending users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/User"
+              example:
+                success: true
+                data:
+                  - userId: 2
+                    vendorId: null
+                    roleId: 2
+                    firstName: "Jane"
+                    lastName: "Smith"
+                    email: "jane@example.com"
+                    personalPhone: "987654321"
+                    status: "PENDING"
+                    createdAt: "2026-05-28T10:00:00.000Z"
+                    role:
+                      roleName: "VENDOR_ADMIN"
+                      roleDescription: null
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions (not SUPER_ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: "Insufficient permissions"
+
+  /api/admin/users/{id}/approve:
+    patch:
+      tags:
+        - Admin
+      summary: Approve a pending user
+      description: |
+        Sets a user's status from PENDING to ACTIVE.
+        Also syncs the status to the linked vendor via the external Vendor Service.
+      operationId: approveUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID to approve
+          schema:
+            type: integer
+            example: 2
+      responses:
+        "200":
+          description: User approved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+              example:
+                success: true
+                message: "User approved successfully"
+                data:
+                  userId: 2
+                  vendorId: 11
+                  roleId: 2
+                  firstName: "Jane"
+                  lastName: "Smith"
+                  email: "jane@example.com"
+                  personalPhone: "987654321"
+                  status: "ACTIVE"
+                  createdAt: "2026-05-28T10:00:00.000Z"
+                  role:
+                    roleName: "VENDOR_ADMIN"
+                    roleDescription: null
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions (not SUPER_ADMIN)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: "User not found"
+        "409":
+          description: User is not in PENDING status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: "User is not pending approval"
+
+  /api/admin/users/{id}/status:
+    patch:
+      tags:
+        - Admin
+      summary: Update user status
+      description: |
+        Updates a user's status. Can be called either:
+        - By an internal service using the `x-service-secret` header
+        - By a SUPER_ADMIN using a Bearer JWT
+      operationId: updateUserStatus
+      security:
+        - BearerAuth: []
+        - ServiceSecret: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID to update
+          schema:
+            type: integer
+            example: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusUpdateInput"
+            example:
+              status: "ACTIVE"
+      responses:
+        "200":
+          description: Status updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+        "400":
+          description: Invalid status value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: "Status inválido: UNKNOWN"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/admin/vendors/{vendor_id}/user:
+    get:
+      tags:
+        - Admin
+      summary: Find user by vendor ID
+      description: Looks up the user linked to a given vendor ID.
+      operationId: getUserByVendorId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: vendor_id
+          in: path
+          required: true
+          description: Vendor ID to search for
+          schema:
+            type: integer
+            example: 11
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+        "403":
+          description: Insufficient permissions
+        "404":
+          description: No user found for this vendor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: "Usuario no encontrado para este vendor"
+
+  /api/admin/users/{id}:
+    patch:
+      tags:
+        - Admin
+      summary: Update user profile
+      description: Updates a user's basic profile fields (first_name, last_name, personal_phone).
+      operationId: updateUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID to update
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                  description: New first name
+                  example: "John"
+                last_name:
+                  type: string
+                  description: New last name
+                  example: "Smith"
+                personal_phone:
+                  type: string
+                  description: New phone number
+                  example: "999888777"
+      responses:
+        "200":
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+              example:
+                success: true
+                message: "Usuario actualizado correctamente"
+                data:
+                  userId: 1
+                  vendorId: 10
+                  roleId: 2
+                  firstName: "John"
+                  lastName: "Smith"
+                  email: "john@example.com"
+                  personalPhone: "999888777"
+                  status: "ACTIVE"
+                  createdAt: "2026-05-28T12:00:00.000Z"
+                  role:
+                    roleName: "VENDOR_ADMIN"
+                    roleDescription: null
+        "401":
+          description: Not authenticated
+        "403":
+          description: Insufficient permissions
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                success: false
+                message: "Usuario no encontrado"
+
+components:
+  schemas:
+    SuccessResponse:
+      type: object
+      description: Standard success response envelope used by all endpoints.
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+          description: Always true for successful responses
+        message:
+          type: string
+          description: Human-readable result message
+        data:
+          type: object
+          description: Optional payload (varies per endpoint)
+      required:
+        - success
+        - message
+
+    ErrorResponse:
+      type: object
+      description: Standard error response envelope.
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+          description: Always false for error responses
+        message:
+          type: string
+          description: Human-readable error description
+      required:
+        - success
+        - message
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: ["ok"]
+          description: Service health status
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 server timestamp
+      required:
+        - status
+        - timestamp
+
+    Role:
+      type: object
+      description: User role information (flattened from the roles join).
+      properties:
+        roleName:
+          type: string
+          description: Role name (e.g. SUPER_ADMIN, VENDOR_ADMIN)
+          example: "VENDOR_ADMIN"
+        roleDescription:
+          type: string
+          nullable: true
+          description: Optional role description
+      required:
+        - roleName
+
+    User:
+      type: object
+      description: |
+        Sanitized user object returned by the API.
+        DB snake_case fields are mapped to camelCase.
+      properties:
+        userId:
+          type: integer
+          description: Internal user ID
+          example: 1
+        vendorId:
+          type: integer
+          nullable: true
+          description: Linked vendor ID (null until vendor is created)
+          example: 10
+        roleId:
+          type: integer
+          description: Role ID (1 = SUPER_ADMIN, 2 = VENDOR_ADMIN)
+          example: 2
+        firstName:
+          type: string
+          description: User's first name
+          example: "John"
+        lastName:
+          type: string
+          description: User's last name
+          example: "Doe"
+        email:
+          type: string
+          format: email
+          description: Email address (used for login)
+          example: "john@example.com"
+        personalPhone:
+          type: string
+          description: Contact phone number
+          example: "123456789"
+        status:
+          type: string
+          description: Account status
+          enum: [PENDING, ACTIVE, INACTIVE, SUSPENDED]
+          example: "ACTIVE"
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+          example: "2026-05-28T12:00:00.000Z"
+        role:
+          $ref: "#/components/schemas/Role"
+      required:
+        - userId
+        - roleId
+        - firstName
+        - lastName
+        - email
+        - personalPhone
+        - status
+        - createdAt
+        - role
+
+    RegisterInput:
+      type: object
+      description: Request body for user registration.
+      properties:
+        firstName:
+          type: string
+          description: User's first name
+          example: "John"
+        lastName:
+          type: string
+          description: User's last name
+          example: "Doe"
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "john@example.com"
+        personal_phone:
+          type: string
+          description: Contact phone number
+          example: "123456789"
+        password:
+          type: string
+          minLength: 6
+          description: Account password (minimum 6 characters)
+          example: "secret123"
+        confirmPassword:
+          type: string
+          description: Must match password field
+          example: "secret123"
+        company:
+          $ref: "#/components/schemas/CompanyInput"
+      required:
+        - firstName
+        - lastName
+        - email
+        - personal_phone
+        - password
+        - confirmPassword
+        - company
+
+    CompanyInput:
+      type: object
+      description: Company information for vendor creation during registration.
+      properties:
+        name:
+          type: string
+          description: Company legal name
+          example: "Acme Corp"
+        ruc:
+          type: string
+          description: Company tax ID (RUC)
+          example: "12345678901"
+        address:
+          type: string
+          description: Company physical address
+          example: "123 Main St"
+        categories:
+          type: array
+          items:
+            type: integer
+          description: Array of category IDs the company operates in
+          example: [1, 2, 3]
+      required:
+        - name
+        - ruc
+        - address
+        - categories
+
+    LoginInput:
+      type: object
+      description: Request body for user login.
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "john@example.com"
+        password:
+          type: string
+          description: User's password
+          example: "secret123"
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      description: Successful login response payload.
+      properties:
+        token:
+          type: string
+          description: Signed JWT for subsequent authenticated requests
+          example: "eyJhbGciOiJIUzI1NiIs..."
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    StatusUpdateInput:
+      type: object
+      description: Request body for updating user status.
+      properties:
+        status:
+          type: string
+          description: New account status
+          enum: [PENDING, ACTIVE, INACTIVE, SUSPENDED]
+          example: "ACTIVE"
+      required:
+        - status
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Standard Bearer JWT obtained from POST /api/auth/login.
+        Include in the Authorization header as: `Bearer <token>`
+
+    ServiceSecret:
+      type: apiKey
+      in: header
+      name: x-service-secret
+      description: |
+        Internal service authentication.
+        Used by PATCH /api/admin/users/:id/status to bypass JWT auth.
+        The value must match the INTERNAL_SERVICE_SECRET environment variable.
+
+tags:
+  - name: Health
+    description: Service health and status endpoints
+  - name: Auth
+    description: Public authentication endpoints (register, login, profile)
+  - name: Admin
+    description: Administrative endpoints (requires SUPER_ADMIN role)

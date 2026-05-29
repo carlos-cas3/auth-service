@@ -23,6 +23,29 @@ const loginSchema = Joi.object({
 });
 
 class AuthController {
+    /**
+     * POST /api/auth/register
+     * Register a new VENDOR_ADMIN user with company data.
+     *
+     * @param {import('express').Request} req - Express request
+     * @param {import('express').Response} res - Express response
+     * @param {import('express').NextFunction} next - Express next function
+     * @returns {Promise<void>}
+     *
+     * @example
+     * // Request body:
+     * {
+     *   "firstName": "John",
+     *   "lastName": "Doe",
+     *   "email": "john@example.com",
+     *   "personal_phone": "123456789",
+     *   "password": "secret123",
+     *   "confirmPassword": "secret123",
+     *   "company": { "name": "Acme", "ruc": "123", "address": "St", "categories": [1] }
+     * }
+     * // Response 201:
+     * { "success": true, "message": "User registered successfully. Pending approval.", "data": { ... } }
+     */
     async register(req, res, next) {
         try {
             const { error } = registerSchema.validate(req.body);
@@ -45,6 +68,21 @@ class AuthController {
         }
     }
 
+    /**
+     * POST /api/auth/login
+     * Authenticate a user and return a JWT token.
+     *
+     * @param {import('express').Request} req - Express request
+     * @param {import('express').Response} res - Express response
+     * @param {import('express').NextFunction} next - Express next function
+     * @returns {Promise<void>}
+     *
+     * @example
+     * // Request body:
+     * { "email": "john@example.com", "password": "secret123" }
+     * // Response 200:
+     * { "success": true, "message": "Login successful", "data": { "token": "...", "user": { ... } } }
+     */
     async login(req, res, next) {
         try {
             const { error } = loginSchema.validate(req.body);
@@ -68,6 +106,20 @@ class AuthController {
         }
     }
 
+    /**
+     * GET /api/auth/me
+     * Return the currently authenticated user's profile.
+     * Requires a valid Bearer JWT in the Authorization header.
+     *
+     * @param {import('express').Request} req - Express request (req.user populated by authenticate middleware)
+     * @param {import('express').Response} res - Express response
+     * @param {import('express').NextFunction} next - Express next function
+     * @returns {Promise<void>}
+     *
+     * @example
+     * // Response 200:
+     * { "success": true, "data": { "userId": 1, "email": "...", ... } }
+     */
     async me(req, res, next) {
         try {
             res.status(HTTP_STATUS.OK).json({
