@@ -1,3 +1,12 @@
+/**
+ * @file Main Express application entrypoint.
+ *
+ * Middleware stack (order matters):
+ *   helmet → cors → OPTIONS handler → generalLimiter → body parsers
+ *   → /api generalLimiter (duplicate) → /health → /api/auth → /api/admin
+ *   → notFoundHandler → errorHandler
+ */
+
 require("dotenv").config();
 
 const express = require("express");
@@ -39,6 +48,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", generalLimiter);
 
+/** GET /health — Health check endpoint (no auth). */
 app.get("/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
 });

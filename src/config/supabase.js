@@ -9,10 +9,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase configuration');
 }
 
+/** Supabase client using the anon/public key (RLS-enforced). @type {import('@supabase/supabase-js').SupabaseClient} */
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   realtime: { transport: ws }
 });
 
+/** Supabase client using the service_role key (bypasses RLS). Null when SUPABASE_SERVICE_KEY is not set. @type {import('@supabase/supabase-js').SupabaseClient | null} */
 const supabaseAdmin = supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
