@@ -3,6 +3,30 @@ const { HTTP_STATUS } = require("../models/types");
 
 class AdminController {
     /**
+     * POST /api/admin/users/internal
+     * Creates a VENDOR_ADMIN user from an internal service call (vendor-service).
+     * Protected by x-service-secret header, no JWT required.
+     *
+     * @param {import('express').Request} req - Express request
+     * @param {import('express').Response} res - Express response
+     * @param {import('express').NextFunction} next - Express next function
+     * @returns {Promise<void>}
+     *
+     **/
+    async createUserInternal(req, res, next) {
+        try {
+            const result = await adminService.createUserInternal(req.body);
+
+            res.status(HTTP_STATUS.CREATED).json({
+                success: true,
+                data: result,
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
      * PATCH /api/admin/users/:id/approve
      * Approve a pending user. Sets status to ACTIVE and syncs with Vendor Service.
      * Requires SUPER_ADMIN role.

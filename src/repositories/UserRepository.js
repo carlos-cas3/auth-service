@@ -74,36 +74,24 @@ class UserRepository {
      * @throws {Error} On database insert failure
      */
     async create(userData) {
-        const {
-            first_name,
-            last_name,
-            email,
-            personal_phone,
-            password,
-            role_id,
-            status,
-        } = userData;
-
         const { data, error } = await (supabaseAdmin || supabase)
             .from("users")
             .insert({
-                first_name,
-                last_name,
-                email,
-                personal_phone,
-                password,
-                role_id,
-                status,
+                first_name: userData.first_name,
+                last_name: userData.last_name,
+                email: userData.email,
+                personal_phone: userData.personal_phone,
+                password: userData.password,
+                role_id: userData.role_id,
+                status: userData.status,
                 vendor_id: userData.vendor_id || null,
+                must_change_password: userData.must_change_password || false,
                 created_at: new Date().toISOString(),
             })
             .select()
             .single();
 
-        if (error) {
-            throw new Error(error.message);
-        }
-
+        if (error) throw new Error(error.message);
         return data;
     }
 
