@@ -216,6 +216,16 @@ class UserRepository {
             .eq("user_id", userId);
         if (error) throw new Error(error.message);
     }
+
+    async findStaffByVendorId(vendorId) {
+        const { data, error } = await (supabaseAdmin || supabase)
+            .from("users")
+            .select("user_id, first_name, last_name, email, personal_phone, role_id")
+            .eq("vendor_id", vendorId)
+            .in("role_id", [3, 4]);
+        if (error) throw new Error(error.message);
+        return data;
+    }
 }
 
 module.exports = new UserRepository();

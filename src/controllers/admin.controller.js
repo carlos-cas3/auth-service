@@ -1,5 +1,15 @@
 const { adminService } = require("../services");
 const { HTTP_STATUS } = require("../models/types");
+const Joi = require("joi");
+
+const createInternalUserSchema = Joi.object({
+    first_name: Joi.string().required(),
+    last_name: Joi.string().required(),
+    email: Joi.string().email().required(),
+    personal_phone: Joi.string().required(),
+    role_id: Joi.number().valid(3, 4).required(),
+    vendor_id: Joi.number().required(),
+});
 
 class AdminController {
     /**
@@ -20,6 +30,27 @@ class AdminController {
             res.status(HTTP_STATUS.CREATED).json({
                 success: true,
                 data: result,
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async createInternalUser(req, res, next) {
+        try {
+            const { error } = createInternalUserSchema.validate(req.body);
+            if (error) {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: error.details[0].message,
+                });
+            }
+
+            const user = await adminService.createInternalUser(req.body);
+
+            res.status(HTTP_STATUS.CREATED).json({
+                success: true,
+                data: user,
             });
         } catch (err) {
             next(err);
@@ -152,6 +183,28 @@ class AdminController {
                 success: true,
                 message: "Usuario actualizado correctamente",
                 data: user,
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async getInternalUsers(req, res, next) {
+        try {
+            const { vendor_id } = req.query;
+
+            if (!vendor_id || isNaN(Number(vendor_id))) {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: "vendor_id is required and must be a number",
+                });
+            }
+
+            const users = await adminService.getInternalUsers(Number(vendor_id));
+
+            res.status(HTTP_STATUS.OK).json({
+                success: true,
+                data: users,
             });
         } catch (err) {
             next(err);

@@ -13,7 +13,6 @@ const STATUS_MAP = {
 };
 
 class AdminService {
-    // admin.service.js en auth-service — método nuevo
     async createUserInternal(data) {
         const existingUser = await userRepository.findByEmail(data.email);
         if (existingUser) throw new Error("Email already registered");
@@ -36,10 +35,41 @@ class AdminService {
             role_id: vendorRole.role_id,
             status: USER_STATUS.ACTIVE,
             vendor_id: data.vendor_id,
-            must_change_password: true, // ← esto faltaba
+            must_change_password: true,
         });
 
         return { user_id: user.user_id };
+    }
+
+    async createInternalUser(data) {
+        const existingUser = await userRepository.findByEmail(data.email);
+        if (existingUser) throw new Error("Email already registered");
+
+        const hashedPassword = await bcrypt.hash(
+            process.env.DEFAULT_STAFF_PASSWORD,
+            Number.parseInt(process.env.BCRYPT_ROUNDS),
+        );
+
+        const user = await userRepository.create({
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            personal_phone: data.personal_phone,
+            password: hashedPassword,
+            role_id: data.role_id,
+            status: USER_STATUS.ACTIVE,
+            vendor_id: data.vendor_id,
+            must_change_password: true,
+        });
+
+        return {
+            user_id: user.user_id,
+            email: user.email,
+            role_id: user.role_id,
+            vendor_id: user.vendor_id,
+            first_name: user.first_name,
+            last_name: user.last_name,
+        };
     }
     /**
      * Approve a pending user, setting their status to ACTIVE.
@@ -132,6 +162,10 @@ class AdminService {
 
         const updated = await userRepository.update(userId, data);
         return sanitizeUser(updated);
+    }
+
+    async getInternalUsers(vendorId) {
+        return userRepository.findStaffByVendorId(vendorId);
     }
 }
 
