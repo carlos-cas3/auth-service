@@ -147,13 +147,15 @@ class UserRepository {
      * @throws {Error} On database update failure
      */
     async update(userId, data) {
+        const updates = {};
+        if (data.first_name !== undefined) updates.first_name = data.first_name;
+        if (data.last_name !== undefined) updates.last_name = data.last_name;
+        if (data.personal_phone !== undefined) updates.personal_phone = data.personal_phone;
+        if (data.email !== undefined) updates.email = data.email;
+
         const { data: user, error } = await (supabaseAdmin || supabase)
             .from("users")
-            .update({
-                first_name: data.first_name,
-                last_name: data.last_name,
-                personal_phone: data.personal_phone,
-            })
+            .update(updates)
             .eq("user_id", userId)
             .select("*, roles(role_name, role_description)")
             .single();

@@ -160,6 +160,11 @@ class AdminService {
         const user = await userRepository.findById(userId);
         if (!user) throw new Error("Usuario no encontrado");
 
+        if (data.email && data.email !== user.email) {
+            const existing = await userRepository.findByEmail(data.email);
+            if (existing) throw new Error("Email already registered");
+        }
+
         const updated = await userRepository.update(userId, data);
         return sanitizeUser(updated);
     }
