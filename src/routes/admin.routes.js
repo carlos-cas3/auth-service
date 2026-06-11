@@ -14,6 +14,14 @@ const serviceAuth = require("../middlewares/serviceAuth");
  * GET   /vendors/:vendor_id/user — Lookup user by linked vendor ID
  * PATCH /users/:id               — Update user profile fields
  */
+
+// ruta interna: solo vendor-service puede llamar esto
+router.post(
+    "/users/internal",
+    serviceAuth,
+    adminController.createUserInternal,
+);
+
 router.get(
     "/users/pending",
     authenticate,
@@ -38,14 +46,12 @@ router.patch(
     adminController.updateUserStatus,
 );
 
-
 router.get(
     "/vendors/:vendor_id/user",
     authenticate,
     authorize("SUPER_ADMIN"),
     adminController.getUserByVendorId,
 );
-
 
 router.patch(
     "/users/:id",
