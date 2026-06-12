@@ -18,7 +18,7 @@ class AdminService {
         if (existingUser) throw new Error("Email already registered");
 
         const hashedPassword = await bcrypt.hash(
-            data.password,
+            data.password || process.env.DEFAULT_STAFF_PASSWORD,
             Number.parseInt(process.env.BCRYPT_ROUNDS),
         );
 
