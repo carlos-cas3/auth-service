@@ -47,7 +47,7 @@ class AuthService {
             if (!user) throw new Error("User not found");
             return sanitizeUser(user);
         } catch (error) {
-            throw new Error("Invalid token");
+            throw new Error("Invalid token", { cause: error });
         }
     }
 }
