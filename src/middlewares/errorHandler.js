@@ -15,7 +15,7 @@ const { HTTP_STATUS } = require('../models/types');
  * throw new Error("Something went wrong");
  * // or set err.statusCode = 400 before throwing
  */
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   console.error('Error:', err.message);
   console.error('Stack:', err.stack);
 

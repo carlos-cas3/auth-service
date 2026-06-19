@@ -7,6 +7,8 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest --verbose",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch"
   },
@@ -33,6 +35,9 @@
     "ws": "^8.21.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.5.0",
+    "globals": "^17.6.0",
     "jest": "^30.4.2",
     "nodemon": "^3.1.14"
   }
