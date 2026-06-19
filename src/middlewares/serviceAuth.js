@@ -18,9 +18,8 @@ const serviceAuth = (req, res, next) => {
     const secret = req.headers["x-service-secret"];
     if (secret && secret === process.env.INTERNAL_SERVICE_SECRET) {
         req.isInternalService = true;
-        return next();
     }
-    return res.status(401).json({ error: "Unauthorized internal call" });
+    next();
 };
 
 module.exports = serviceAuth;
