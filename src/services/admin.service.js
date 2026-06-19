@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const { USER_STATUS, ROLE_NAME } = require("../models/types");
 const { sanitizeUser } = require("../utils/user.helpers");
 const { updateVendorStatus } = require("../clients/vendor.client");
+const { sendEvent } = require("../clients/analytics.client");
 
 const STATUS_MAP = {
     ACTIVE: USER_STATUS.ACTIVE,
@@ -38,6 +39,14 @@ class AdminService {
             must_change_password: true,
         });
 
+        sendEvent({
+            type: "USER_CREATED",
+            aggregateType: "user",
+            aggregateId: user.email,
+            vendorId: user.vendor_id,
+            payload: { email: user.email, first_name: data.first_name, last_name: data.last_name },
+        });
+
         return { user_id: user.user_id };
     }
 
@@ -60,6 +69,14 @@ class AdminService {
             status: USER_STATUS.ACTIVE,
             vendor_id: data.vendor_id,
             must_change_password: true,
+        });
+
+        sendEvent({
+            type: "USER_CREATED",
+            aggregateType: "user",
+            aggregateId: user.email,
+            vendorId: user.vendor_id,
+            payload: { email: user.email, role_id: user.role_id, first_name: user.first_name, last_name: user.last_name },
         });
 
         return {
@@ -102,6 +119,14 @@ class AdminService {
             await updateVendorStatus(user.vendor_id, "ACTIVE");
         }
 
+        sendEvent({
+            type: "USER_STATUS_CHANGED",
+            aggregateType: "user",
+            aggregateId: user.email,
+            vendorId: user.vendor_id,
+            payload: { status: "active", previous_status: "pending" },
+        });
+
         return sanitizeUser(updatedUser);
     }
 
@@ -119,6 +144,15 @@ class AdminService {
         if (!mappedStatus) throw new Error(`Status inválido: ${status}`);
 
         const user = await userRepository.updateStatus(userId, mappedStatus);
+
+        sendEvent({
+            type: "USER_STATUS_CHANGED",
+            aggregateType: "user",
+            aggregateId: user.email,
+            vendorId: user.vendor_id,
+            payload: { status: status.toLowerCase() },
+        });
+
         return sanitizeUser(user);
     }
 

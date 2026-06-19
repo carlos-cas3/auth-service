@@ -5,7 +5,6 @@ const { generateToken, verifyToken } = require("./token.service");
 const { sanitizeUser } = require("../utils/user.helpers");
 const { createVendor } = require("../clients/vendor.client");
 const { mapToVendorPayload } = require("../mappers/vendor.mapper");
-
 class AuthService {
     /**
      * Authenticate a user by email and password.
