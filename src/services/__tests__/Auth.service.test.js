@@ -33,7 +33,7 @@ const { userRepository, roleRepository } = require("../../repositories");
 const { createVendor } = require("../../clients/vendor.client");
 const { mapToVendorPayload } = require("../../mappers/vendor.mapper");
 const { sanitizeUser } = require("../../utils/user.helpers");
-const authService = require("../Auth.service");
+const authService = require("../auth.service");
 
 const OLD_ENV = process.env;
 

@@ -27,7 +27,7 @@ jest.mock("../../clients/vendor.client");
 const { userRepository } = require("../../repositories");
 const { updateVendorStatus } = require("../../clients/vendor.client");
 const { sanitizeUser } = require("../../utils/user.helpers");
-const adminService = require("../Admin.service");
+const adminService = require("../admin.service");
 
 beforeEach(() => {
   jest.clearAllMocks();
