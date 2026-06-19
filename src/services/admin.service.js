@@ -43,7 +43,7 @@ class AdminService {
             type: "USER_CREATED",
             aggregateType: "user",
             aggregateId: user.email,
-            vendorIds: user.vendor_id ? [user.vendor_id] : [],
+            vendorIds: user.vendor_id ? [String(user.vendor_id)] : [],
             payload: { email: user.email, first_name: data.first_name, last_name: data.last_name },
         });
 
@@ -75,7 +75,7 @@ class AdminService {
             type: "USER_CREATED",
             aggregateType: "user",
             aggregateId: user.email,
-            vendorIds: user.vendor_id ? [user.vendor_id] : [],
+            vendorIds: user.vendor_id ? [String(user.vendor_id)] : [],
             payload: { email: user.email, role_id: user.role_id, first_name: user.first_name, last_name: user.last_name },
         });
 
@@ -123,7 +123,7 @@ class AdminService {
             type: "USER_STATUS_CHANGED",
             aggregateType: "user",
             aggregateId: user.email,
-            vendorIds: user.vendor_id ? [user.vendor_id] : [],
+            vendorIds: user.vendor_id ? [String(user.vendor_id)] : [],
             payload: { status: "active", previous_status: "pending" },
         });
 
@@ -149,7 +149,7 @@ class AdminService {
             type: "USER_STATUS_CHANGED",
             aggregateType: "user",
             aggregateId: user.email,
-            vendorIds: user.vendor_id ? [user.vendor_id] : [],
+            vendorIds: user.vendor_id ? [String(user.vendor_id)] : [],
             payload: { status: status.toLowerCase() },
         });
 
